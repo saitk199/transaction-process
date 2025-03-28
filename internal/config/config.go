@@ -21,7 +21,7 @@ type HTTPServer struct {
 }
 
 func MustLoad() *Config {
-	configPath := "C:/Users/Леонид/go/transaction-process/config/local.yaml"
+	configPath := "C:/Users/raizo/source/repos/go/Web/transaction-process/config/local.yaml"
 
 	//check if file exists
 	if _, error := os.Stat(configPath); os.IsNotExist(error) {
