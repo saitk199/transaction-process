@@ -16,7 +16,7 @@ func main() {
 	log.Info("starting rest service :", slog.String("env", cfg.Env))
 	log.Debug("debug logs enable")
 
-	storage, err := sqlite.New(cfg.StoragePath)
+	storage, err := sqlite.InitDataBase(cfg.StoragePath)
 	if err != nil {
 		log.Error("Ошибка инициализации БД", Err(err))
 		os.Exit(1)
