@@ -1,9 +1,12 @@
 package main
 
 import (
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
 	"os"
 	"transaction-process/internal/config"
+	"transaction-process/internal/http-server/handlers/url"
 	"transaction-process/internal/storage/sqlite"
 )
 
@@ -22,7 +25,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = storage
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.URLFormat)
+
+	router.Post("/api/send", url.New(log, storage))
+
+	log.Info("starting http server :", slog.String("env", cfg.Env))
 
 }
 

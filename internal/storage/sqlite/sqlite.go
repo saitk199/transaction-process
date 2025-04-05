@@ -6,6 +6,7 @@ import (
 	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
+	"transaction-process/internal/storage/domain"
 )
 
 type Storage struct {
@@ -20,22 +21,48 @@ func InitDataBase(storagePath string) (*Storage, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	err = createTable(db)
+	s := &Storage{db: db}
+
+	err = s.createTable()
 	if err != nil {
 		return nil, err
 	}
 
-	err = loadSeedData(db)
+	err = s.loadSeedData()
 	if err != nil {
 		return nil, err
 	}
 
-	return &Storage{db: db}, nil
+	return s, nil
 }
 
-func createTable(db *sql.DB) error {
+func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
+	return nil, nil
+}
+
+func (s *Storage) GetBalance(address string) (*domain.Vallet, error) {
+	const op = "storage.sqlite.GetBalance"
+	vallet, err := s.db.Prepare("SELECT * FROM vallet WHERE address=?")
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	var valletDto domain.Vallet
+
+	err = vallet.QueryRow(address).Scan(&valletDto)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("%s: Not found vallet with address %s", op, address)
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	return &valletDto, nil
+}
+
+func (s *Storage) createTable() error {
 	const op = "storage.sqlite.createTable"
-	stmt, err := db.Prepare(`
+	stmt, err := s.db.Prepare(`
 	CREATE TABLE IF NOT EXISTS vallet(
     	adress TEXT PRIMARY KEY,
     	balance REAL NOT NULL
@@ -64,7 +91,7 @@ func createTable(db *sql.DB) error {
 	return nil
 }
 
-func loadSeedData(db *sql.DB) error {
+func (s *Storage) loadSeedData() error {
 	const op = "storage.loadSeedData"
 
 	// Определяем путь к файлу ресурсов
@@ -77,7 +104,7 @@ func loadSeedData(db *sql.DB) error {
 	}
 
 	// Выполняем SQL-скрипт
-	_, err = db.Exec(string(data))
+	_, err = s.db.Exec(string(data))
 	if err != nil {
 		return fmt.Errorf("%s: ошибка выполнения SQL-скрипта: %w", op, err)
 	}
