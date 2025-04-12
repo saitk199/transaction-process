@@ -72,7 +72,6 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 	}
 
 	// Вставляем запись о платеже
-	//fdsfsdfds
 	paymentDate := time.Now().UTC().Unix()
 	paymentId := uuid.New().String()
 	_, err = s.db.Exec(`INSERT INTO payment (id,sender, recipient, payment_date, amount) VALUES (?, ?, ?, ?, ?)`,
@@ -113,7 +112,36 @@ func (s *Storage) GetBalance(address string) (*domain.Vallet, error) {
 }
 
 func (s *Storage) GetLast(count int) ([]domain.Payment, error) {
-	return nil, nil
+	const op = "storage.sqlite.GetLast"
+
+	query := `
+		SELECT id, sender, recipient, payment_date, amount
+		FROM payment
+		ORDER BY payment_date DESC
+		LIMIT ?
+	`
+
+	rows, err := s.db.Query(query, count)
+	if err != nil {
+		return nil, fmt.Errorf("%s: query failed: %w", op, err)
+	}
+	defer rows.Close()
+
+	var payments []domain.Payment
+
+	for rows.Next() {
+		var payment domain.Payment
+		err := rows.Scan(&payment.Id, &payment.Sender, &payment.Recipient, &payment.PaymentDate)
+		if err != nil {
+			return nil, fmt.Errorf("%s: row scan failed: %w", op, err)
+		}
+		payments = append(payments, payment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: rows error: %w", op, err)
+	}
+
+	return payments, nil
 }
 
 func (s *Storage) createTable() error {
