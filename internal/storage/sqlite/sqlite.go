@@ -3,6 +3,7 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
@@ -72,22 +73,23 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 
 	// Вставляем запись о платеже
 	//fdsfsdfds
-	payment.PaymentDate = time.Now().UTC().Unix()
+	paymentDate := time.Now().UTC().Unix()
+	paymentId := uuid.New().String()
 	_, err = s.db.Exec(`INSERT INTO payment (id,sender, recipient, payment_date, amount) VALUES (?, ?, ?, ?, ?)`,
-		payment.Id, payment.Sender, payment.Recipient, payment.PaymentDate, payment.Amount)
+		paymentId, payment.Sender, payment.Recipient, paymentDate, payment.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("%s: insert payment: %w", op, err)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("%s: insert payment: %w", op, err)
-	}
-	//Заюзать GetBalance для получения адреса Sendera и Recieverа,
-	//Проверить у отправителя, больше ли amount чем баланс
-	//Выполнить перевод получателю
-	//Сохранить перевод в таблицу payment
+	var save domain.Payment
 
-	return &payment, nil
+	err = s.db.QueryRow("SELECT id, sender, recipient, payment_date, amount FROM payment WHERE id = ?",
+		payment.Id).Scan(&save)
+	if err != nil {
+		return nil, fmt.Errorf("%s: payment don't save: %w", op, err)
+	}
+
+	return &save, nil
 }
 
 func (s *Storage) GetBalance(address string) (*domain.Vallet, error) {
@@ -108,6 +110,10 @@ func (s *Storage) GetBalance(address string) (*domain.Vallet, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return &valletDto, nil
+}
+
+func (s *Storage) GetLast(count int) ([]domain.Payment, error) {
+	return nil, nil
 }
 
 func (s *Storage) createTable() error {
