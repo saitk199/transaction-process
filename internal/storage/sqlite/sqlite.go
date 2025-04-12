@@ -56,16 +56,16 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 	}
 
 	//Снимаем средства у отправителя
-	_, err = s.db.Exec("UPDATE vallet SET balance = balance - ? WHERE address = ?", payment.Amount, payment.Sender)
+	_, err = s.db.Exec("UPDATE vallet SET balance = balance - ? WHERE adress = ?", payment.Amount, payment.Sender)
 	if err != nil {
 		return nil, fmt.Errorf("%s: update sender balance: %w", op, err)
 	}
 
 	//Пополняем счет получателя
 	if recipient != nil {
-		_, err = s.db.Exec("UPDATE vallet SET balance = balance + ? WHERE address = ?", payment.Amount, payment.Recipient)
+		_, err = s.db.Exec("UPDATE vallet SET balance = balance + ? WHERE adress = ?", payment.Amount, payment.Recipient)
 	} else {
-		_, err = s.db.Exec("INSERT INTO vallet (address, balance) VALUES (?, ?)", payment.Recipient, payment.Amount)
+		_, err = s.db.Exec("INSERT INTO vallet (adress, balance) VALUES (?, ?)", payment.Recipient, payment.Amount)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: update/insert receiver balance: %w", op, err)
@@ -74,7 +74,7 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 	// Вставляем запись о платеже
 	paymentDate := time.Now().UTC().Unix()
 	paymentId := uuid.New().String()
-	_, err = s.db.Exec(`INSERT INTO payment (id,sender, recipient, payment_date, amount) VALUES (?, ?, ?, ?, ?)`,
+	_, err = s.db.Exec(`INSERT INTO payment (id, sender, recipient, payment_date, amount) VALUES (?, ?, ?, ?, ?)`,
 		paymentId, payment.Sender, payment.Recipient, paymentDate, payment.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("%s: insert payment: %w", op, err)
@@ -83,7 +83,7 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 	var save domain.Payment
 
 	err = s.db.QueryRow("SELECT id, sender, recipient, payment_date, amount FROM payment WHERE id = ?",
-		payment.Id).Scan(&save.Id, &save.Recipient, &save.PaymentDate, &save.Amount)
+		paymentId).Scan(&save.Id, &save.Sender, &save.Recipient, &save.PaymentDate, &save.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("%s: payment don't save: %w", op, err)
 	}
