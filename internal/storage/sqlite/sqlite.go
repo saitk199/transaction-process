@@ -71,6 +71,7 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 	}
 
 	// Вставляем запись о платеже
+	//fdsfsdfds
 	payment.PaymentDate = time.Now().UTC().Unix()
 	_, err = s.db.Exec(`INSERT INTO payment (id,sender, recipient, payment_date, amount) VALUES (?, ?, ?, ?, ?)`,
 		payment.Id, payment.Sender, payment.Recipient, payment.PaymentDate, payment.Amount)
