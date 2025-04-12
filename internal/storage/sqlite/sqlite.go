@@ -83,7 +83,7 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 	var save domain.Payment
 
 	err = s.db.QueryRow("SELECT id, sender, recipient, payment_date, amount FROM payment WHERE id = ?",
-		payment.Id).Scan(&save)
+		payment.Id).Scan(&save.Id, &save.Recipient, &save.PaymentDate, &save.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("%s: payment don't save: %w", op, err)
 	}
@@ -93,14 +93,14 @@ func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
 
 func (s *Storage) GetBalance(address string) (*domain.Vallet, error) {
 	const op = "storage.sqlite.GetBalance"
-	vallet, err := s.db.Prepare("SELECT * FROM vallet WHERE address=?")
+	vallet, err := s.db.Prepare("SELECT adress, balance FROM vallet WHERE adress=?")
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	var valletDto domain.Vallet
 
-	err = vallet.QueryRow(address).Scan(&valletDto)
+	err = vallet.QueryRow(address).Scan(&valletDto.Address, &valletDto.Balance)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -131,7 +131,7 @@ func (s *Storage) GetLast(count int) ([]domain.Payment, error) {
 
 	for rows.Next() {
 		var payment domain.Payment
-		err := rows.Scan(&payment.Id, &payment.Sender, &payment.Recipient, &payment.PaymentDate)
+		err := rows.Scan(&payment.Id, &payment.Sender, &payment.Recipient, &payment.PaymentDate, &payment.Amount)
 		if err != nil {
 			return nil, fmt.Errorf("%s: row scan failed: %w", op, err)
 		}
