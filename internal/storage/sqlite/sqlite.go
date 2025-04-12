@@ -6,6 +6,7 @@ import (
 	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
+	"time"
 	"transaction-process/internal/storage/domain"
 )
 
@@ -37,7 +38,55 @@ func InitDataBase(storagePath string) (*Storage, error) {
 }
 
 func (s *Storage) Send(payment domain.Payment) (*domain.Payment, error) {
-	return nil, nil
+
+	const op = "storage.sqlite.Send"
+	sender, err := s.GetBalance(payment.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if sender.Balance < payment.Amount {
+		return nil, fmt.Errorf("%s: insufficient funds", op)
+	}
+
+	recipient, err := s.GetBalance(payment.Recipient)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	//Снимаем средства у отправителя
+	_, err = s.db.Exec("UPDATE vallet SET balance = balance - ? WHERE address = ?", payment.Amount, payment.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("%s: update sender balance: %w", op, err)
+	}
+
+	//Пополняем счет получателя
+	if recipient != nil {
+		_, err = s.db.Exec("UPDATE vallet SET balance = balance + ? WHERE address = ?", payment.Amount, payment.Recipient)
+	} else {
+		_, err = s.db.Exec("INSERT INTO vallet (address, balance) VALUES (?, ?)", payment.Recipient, payment.Amount)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: update/insert receiver balance: %w", op, err)
+	}
+
+	// Вставляем запись о платеже
+	payment.PaymentDate = time.Now().UTC().Unix()
+	_, err = s.db.Exec(`INSERT INTO payment (id,sender, recipient, payment_date, amount) VALUES (?, ?, ?, ?, ?)`,
+		payment.Id, payment.Sender, payment.Recipient, payment.PaymentDate, payment.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("%s: insert payment: %w", op, err)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("%s: insert payment: %w", op, err)
+	}
+	//Заюзать GetBalance для получения адреса Sendera и Recieverа,
+	//Проверить у отправителя, больше ли amount чем баланс
+	//Выполнить перевод получателю
+	//Сохранить перевод в таблицу payment
+
+	return &payment, nil
 }
 
 func (s *Storage) GetBalance(address string) (*domain.Vallet, error) {
